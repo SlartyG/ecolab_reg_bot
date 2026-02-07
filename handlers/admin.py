@@ -37,6 +37,23 @@ def broadcast_cancel_kb():
     ])
 
 
+@router.message(Command("stats"), is_admin)
+async def cmd_stats(message: types.Message):
+    """Проверка рассылки статистики: сразу присылает отчёт за последний час."""
+    try:
+        stats = sheets_service.get_registrations_count_last_hour()
+        total = stats["events"] + stats["accelerator"]
+        text = (
+            "📊 Статистика за последний час\n\n"
+            f"Мероприятия: {stats['events']}\n"
+            f"Акселератор: {stats['accelerator']}\n"
+            f"Всего: {total}"
+        )
+        await message.answer(text)
+    except Exception as e:
+        await message.answer(f"Ошибка: {e}")
+
+
 @router.message(Command("send"), is_admin)
 async def cmd_send(message: types.Message, state: FSMContext):
     await state.set_state(AdminStates.waiting_for_audience)

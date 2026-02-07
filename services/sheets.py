@@ -1,6 +1,7 @@
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from typing import List, Dict, Optional
+from datetime import datetime, timedelta
+from typing import List, Dict, Tuple
 from config import (
     SPREADSHEET_ID,
     CREDENTIALS_FILE,
@@ -130,3 +131,38 @@ class GoogleSheetsService:
         except Exception as e:
             print(f"Error getting user ids from Google Sheets: {e}")
         return user_ids
+
+    def get_registrations_count_last_hour(self) -> Dict[str, int]:
+        """
+        Возвращает количество регистраций за последний час по каждому листу.
+        Возвращает {"events": N, "accelerator": N}.
+        """
+        since = datetime.now() - timedelta(hours=1)
+        date_fmt = "%Y-%m-%d %H:%M:%S"
+        result = {"events": 0, "accelerator": 0}
+
+        def count_since(rows: List[Dict], date_key: str) -> int:
+            n = 0
+            for row in rows:
+                val = row.get(date_key)
+                if not val:
+                    continue
+                if isinstance(val, datetime):
+                    dt = val
+                else:
+                    try:
+                        dt = datetime.strptime(str(val).strip(), date_fmt)
+                    except (ValueError, TypeError):
+                        continue
+                if dt >= since:
+                    n += 1
+            return n
+
+        try:
+            sheet_ev = self._get_sheet(SHEET_NAME_EVENTS)
+            result["events"] = count_since(sheet_ev.get_all_records(), "Дата регистрации")
+            sheet_acc = self._get_sheet(SHEET_NAME_ACCELERATOR)
+            result["accelerator"] = count_since(sheet_acc.get_all_records(), "Дата регистрации")
+        except Exception as e:
+            print(f"Error getting registration stats: {e}")
+        return result

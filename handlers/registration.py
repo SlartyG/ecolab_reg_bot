@@ -1,7 +1,7 @@
 from aiogram import Router, F, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove
 from datetime import datetime
 
 from utils.states import ChoosingEvent, AcceleratorStates, EventStates
@@ -13,6 +13,7 @@ from config import (
     ACCELERATOR_STAGES,
     PIZZAPITCH_CHOICES,
     PERSONAL_DATA_POLICY_URL,
+    SUPPORT_USERNAME,
     ADMINS,
 )
 
@@ -64,11 +65,20 @@ def pizzapitch_kb():
 
 
 # --- /start и выбор мероприятия ---
+WELCOME_TEXT = (
+    "Привет! Этот бот создан для регистрации на мероприятия Стартап-студии «ВоронаCreativeTech».\n\n"
+    "При вопросах и проблемах напишите: {support}"
+)
+
+
 @router.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer(
-        "Привет! 👋\n"
+        WELCOME_TEXT.format(support=SUPPORT_USERNAME),
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    await message.answer(
         "Выберите, на какое мероприятие хотите зарегистрироваться:",
         reply_markup=event_choice_kb(),
     )
@@ -93,8 +103,9 @@ async def process_event_choice(callback: types.CallbackQuery, state: FSMContext)
 
 
 @router.message(ChoosingEvent.waiting_for_event)
-async def wrong_event_choice(message: types.Message):
-    await message.answer("Выберите мероприятие с помощью кнопок ниже.", reply_markup=event_choice_kb())
+async def wrong_event_choice(message: types.Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Чтобы начать регистрацию, нажмите /start")
 
 
 # ========== АКСЕЛЕРАТОР ==========
