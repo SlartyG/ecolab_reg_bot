@@ -46,6 +46,6 @@ PIZZAPITCH_CHOICES = {
 PERSONAL_DATA_POLICY_URL = "https://www.hse.ru/data_protection_regulation"
 
 # Контакт поддержки (юзернейм с @ для приветственного сообщения)
-SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "TechnoEcoLab")
+SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "VoronaHSE")
 if not SUPPORT_USERNAME.startswith("@"):
     SUPPORT_USERNAME = "@" + SUPPORT_USERNAME
