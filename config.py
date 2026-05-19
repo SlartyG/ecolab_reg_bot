@@ -17,7 +17,7 @@ CREDENTIALS_FILE = "credentials.json"
 # Выбор мероприятия при /start
 EVENTS = {
     "accelerator": "Акселератор «ВоронаCreativeTech»",
-    "events": "Мероприятия Стартап-студии",
+    "events": "Мероприятия Бизнес-студии",
 }
 
 # Акселератор: направление (трек)

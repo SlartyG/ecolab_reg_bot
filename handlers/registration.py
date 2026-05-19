@@ -66,7 +66,7 @@ def pizzapitch_kb():
 
 # --- /start и выбор мероприятия ---
 WELCOME_TEXT = (
-    "Привет! Этот бот создан для регистрации на мероприятия Стартап-студии «ВоронаCreativeTech».\n\n"
+    "Привет! Этот бот создан для регистрации на мероприятия Бизнес-студии «ВоронаCreativeTech».\n\n"
     "Контакт для связи и поддержки: {support}"
 )
 
@@ -98,7 +98,7 @@ async def process_event_choice(callback: types.CallbackQuery, state: FSMContext)
         await state.update_data(event_type="events")
         await state.set_state(EventStates.waiting_for_name)
         await callback.message.answer(
-            "Регистрация на мероприятия Стартап-студии.\nВведите ваши ФИО:",
+            "Регистрация на мероприятия Бизнес-студии.\nВведите ваши ФИО:",
         )
 
 
