@@ -35,8 +35,8 @@ def with_back(kb: InlineKeyboardMarkup) -> InlineKeyboardMarkup:
 
 def event_choice_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=EVENTS["accelerator"], callback_data="ev:acc")],
         [InlineKeyboardButton(text=EVENTS["events"], callback_data="ev:evs")],
+        [InlineKeyboardButton(text=EVENTS["accelerator"], callback_data="ev:acc")],
     ])
 
 def yes_no_kb():
