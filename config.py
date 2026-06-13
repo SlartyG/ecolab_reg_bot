@@ -4,6 +4,9 @@ import os
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+# Прокси для Telegram API (если api.telegram.org недоступен с сервера):
+# http://user:pass@host:port или socks5://user:pass@host:port
+TELEGRAM_PROXY = os.getenv("TELEGRAM_PROXY") or None
 # ID админов через запятую в .env (ADMINS_IDS=123,456) или значение по умолчанию
 _admins_str = os.getenv("ADMINS_IDS")
 ADMINS = [int(x.strip()) for x in _admins_str.split(",") if x.strip()]

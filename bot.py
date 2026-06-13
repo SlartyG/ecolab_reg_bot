@@ -3,9 +3,11 @@ import logging
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from config import BOT_TOKEN, ADMINS
+from config import BOT_TOKEN, ADMINS, TELEGRAM_PROXY
 from handlers import registration, admin
 from services.sheets import GoogleSheetsService
 
@@ -18,7 +20,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-bot = Bot(token=BOT_TOKEN)
+session = AiohttpSession(proxy=TELEGRAM_PROXY) if TELEGRAM_PROXY else None
+bot = Bot(token=BOT_TOKEN, session=session)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 dp.include_router(registration.router)
@@ -55,8 +58,22 @@ async def hourly_stats_task(bot: Bot, sheets: GoogleSheetsService) -> None:
 
 async def main():
     logger.info("Starting bot...")
+    if TELEGRAM_PROXY:
+        proxy_host = TELEGRAM_PROXY.rsplit("@", 1)[-1]
+        logger.info("Telegram proxy enabled: %s", proxy_host)
+    else:
+        logger.warning(
+            "TELEGRAM_PROXY не задан. Если api.telegram.org недоступен с сервера, "
+            "бот не сможет подключиться."
+        )
     asyncio.create_task(hourly_stats_task(bot, sheets_service))
-    await dp.start_polling(bot)
+    while True:
+        try:
+            await dp.start_polling(bot)
+            break
+        except TelegramNetworkError as e:
+            logger.error("Telegram network error, retry in 30s: %s", e)
+            await asyncio.sleep(30)
 
 
 if __name__ == "__main__":
