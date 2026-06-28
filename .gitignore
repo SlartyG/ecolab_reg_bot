@@ -25,3 +25,5 @@ __pycache__/
 
 # Системные файлы
 .DS_Store
+stock_docs
+UPD.md

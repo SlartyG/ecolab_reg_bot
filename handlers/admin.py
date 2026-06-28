@@ -5,23 +5,27 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from utils.states import AdminStates
 from services.sheets import GoogleSheetsService
-from config import ADMINS
+from services.admins import get_admin_ids
 
 router = Router()
 sheets_service = GoogleSheetsService()
 
 broadcast_messages = {}
 
+
 def is_admin(message: types.Message) -> bool:
-    return message.from_user.id in ADMINS
+    return message.from_user.id in get_admin_ids()
+
 
 def is_admin_callback(callback: types.CallbackQuery) -> bool:
-    return callback.from_user.id in ADMINS
+    return callback.from_user.id in get_admin_ids()
+
 
 # Аудитории рассылки (callback_data — короткие из-за лимита 64 байта)
 AUDIENCE_ALL = "Всем (Акселератор + Мероприятия)"
 AUDIENCE_ACCELERATOR = "Зарегистрированные на Акселератор"
 AUDIENCE_EVENTS = "Зарегистрированные на Мероприятия"
+
 
 def audience_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -30,6 +34,7 @@ def audience_kb():
         [InlineKeyboardButton(text=AUDIENCE_EVENTS, callback_data="aud:ev")],
         [InlineKeyboardButton(text="Отменить рассылку", callback_data="aud:can")],
     ])
+
 
 def broadcast_cancel_kb():
     return InlineKeyboardMarkup(inline_keyboard=[

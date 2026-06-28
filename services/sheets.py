@@ -7,6 +7,7 @@ from config import (
     CREDENTIALS_FILE,
     SHEET_NAME_EVENTS,
     SHEET_NAME_ACCELERATOR,
+    SHEET_NAME_ADMINS,
 )
 
 # Заголовки для листа «Мероприятия»
@@ -27,15 +28,17 @@ HEADERS_ACCELERATOR = [
     "Название проекта",
     "Email",
     "Тг-аккаунт",
-    "Направление (трек)",
     "Этап реализации",
     "Описание проекта",
-    "PizzaPitch/Прожарка",
+    "Выступление на мероприятиях",
     "Ссылка на презентацию",
-    "ФИО и роль команды",
-    "Вы из НИУ ВШЭ",
+    "ФИО и Образовательная программа",
+    "Ваш вуз",
     "Дата регистрации",
 ]
+
+# Заголовки для листа «Админы»
+HEADERS_ADMINS = ["ID админа", "Имя"]
 
 
 class GoogleSheetsService:
@@ -84,7 +87,6 @@ class GoogleSheetsService:
                     user_data.get("project_name", ""),
                     user_data.get("email", ""),
                     user_data.get("contact", ""),
-                    user_data.get("track", ""),
                     user_data.get("stage", ""),
                     user_data.get("description", ""),
                     user_data.get("pizzapitch", ""),
@@ -98,6 +100,27 @@ class GoogleSheetsService:
         except Exception as e:
             print(f"Error saving to Google Sheets: {e}")
             return False
+
+    def get_admin_ids(self) -> List[int]:
+        """
+        Возвращает список Telegram user_id админов из листа «Админы».
+        Если лист не существует или пуст — возвращает пустой список.
+        """
+        try:
+            sheet = self._get_sheet(SHEET_NAME_ADMINS)
+            rows = sheet.get_all_records()
+            admin_ids: List[int] = []
+            for row in rows:
+                uid = row.get("ID админа")
+                if uid is not None and str(uid).strip():
+                    try:
+                        admin_ids.append(int(uid))
+                    except (ValueError, TypeError):
+                        pass
+            return admin_ids
+        except Exception as e:
+            print(f"Error getting admin ids from Google Sheets: {e}")
+            return []
 
     def get_user_ids(self, audience: str) -> List[int]:
         """

@@ -9,18 +9,19 @@ from utils.validators import validate_email, validate_telegram_contact, validate
 from services.sheets import GoogleSheetsService
 from config import (
     EVENTS,
-    ACCELERATOR_TRACKS,
     ACCELERATOR_STAGES,
     PIZZAPITCH_CHOICES,
     PERSONAL_DATA_POLICY_URL,
     SUPPORT_USERNAME,
-    ADMINS,
+    TEST_BOT_LINK,
 )
+from services.admins import get_admin_ids
 
 router = Router()
 sheets_service = GoogleSheetsService()
 
 BACK_BTN = InlineKeyboardButton(text="◀️ Назад", callback_data="nav:back")
+
 
 # --- Инлайн-клавиатуры ---
 def back_kb():
@@ -37,7 +38,9 @@ def event_choice_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=EVENTS["events"], callback_data="ev:evs")],
         [InlineKeyboardButton(text=EVENTS["accelerator"], callback_data="ev:acc")],
+        [InlineKeyboardButton(text="📝 Пройти тест", url=TEST_BOT_LINK)] if TEST_BOT_LINK else [InlineKeyboardButton(text="📝 Пройти тест (настройте TEST_BOT_LINK)", callback_data="test:placeholder")],
     ])
+
 
 def yes_no_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -47,10 +50,12 @@ def yes_no_kb():
         ],
     ])
 
+
 def consent_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Да, я ознакомился", callback_data="consent")],
     ])
+
 
 def confirm_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -60,15 +65,12 @@ def confirm_kb():
         ],
     ])
 
-def track_kb():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=v, callback_data=f"tr:{k}")] for k, v in ACCELERATOR_TRACKS.items()
-    ])
 
 def stage_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=v, callback_data=f"st:{k}")] for k, v in ACCELERATOR_STAGES.items()
     ])
+
 
 def pizzapitch_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -76,9 +78,38 @@ def pizzapitch_kb():
     ])
 
 
+# --- Меню «что изменить» для акселератора ---
+def acc_edit_menu_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="ФИО", callback_data="edit:acc:name")],
+        [InlineKeyboardButton(text="Название проекта", callback_data="edit:acc:project")],
+        [InlineKeyboardButton(text="Email", callback_data="edit:acc:email")],
+        [InlineKeyboardButton(text="Telegram", callback_data="edit:acc:tg")],
+        [InlineKeyboardButton(text="Этап", callback_data="edit:acc:stage")],
+        [InlineKeyboardButton(text="Описание", callback_data="edit:acc:description")],
+        [InlineKeyboardButton(text="Выступление на мероприятиях", callback_data="edit:acc:pizzapitch")],
+        [InlineKeyboardButton(text="Ссылка на презентацию", callback_data="edit:acc:presentation")],
+        [InlineKeyboardButton(text="ФИО и Образовательная программа", callback_data="edit:acc:team")],
+        [InlineKeyboardButton(text="Ваш вуз", callback_data="edit:acc:hse")],
+        [BACK_BTN],
+    ])
+
+
+# --- Меню «что изменить» для мероприятий ---
+def ev_edit_menu_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="ФИО", callback_data="edit:ev:name")],
+        [InlineKeyboardButton(text="Ваш вуз", callback_data="edit:ev:hse")],
+        [InlineKeyboardButton(text="Образовательная программа", callback_data="edit:ev:edu")],
+        [InlineKeyboardButton(text="Telegram", callback_data="edit:ev:tg")],
+        [InlineKeyboardButton(text="Вопрос", callback_data="edit:ev:question")],
+        [BACK_BTN],
+    ])
+
+
 # --- Тексты и клавиатуры шагов (для перехода вперёд и «Назад») ---
-ACC_INTRO = "Регистрация в Акселератор «ВоронаCreativeTech».\nВведите ваши ФИО:"
-EV_INTRO = "Регистрация на мероприятия Бизнес-студии.\nВведите ваши ФИО:"
+ACC_INTRO = "Регистрация в Акселератор «ВоронаКреативТех».\nВведите ваши ФИО:"
+EV_INTRO = "Регистрация на мероприятия Бизнес-студии «ВоронаКреативТех».\nВведите ваши ФИО:"
 CONSENT_TEXT = (
     "Я подтверждаю, что лично ознакомился с Положением об обработке "
     "персональных данных НИУ ВШЭ, вправе предоставлять свои персональные "
@@ -96,22 +127,21 @@ def acc_step_prompt(state: AcceleratorStates):
             "Ваш Telegram-аккаунт (@username или номер телефона):",
             back_kb(),
         ),
-        AcceleratorStates.waiting_for_track: ("Направление (трек):", with_back(track_kb())),
         AcceleratorStates.waiting_for_stage: (
             "Этап реализации проекта:",
             with_back(stage_kb()),
         ),
         AcceleratorStates.waiting_for_description: ("Краткое описание проекта:", back_kb()),
         AcceleratorStates.waiting_for_pizzapitch: (
-            "Хотите выступить на PizzaPitch или Прожарке стартапов?",
+            "Хотите ли выступить на мероприятиях Бизнес-студии?",
             with_back(pizzapitch_kb()),
         ),
         AcceleratorStates.waiting_for_presentation_url: (
-            "Пришлите ссылку на презентацию вашего продукта/проекта (URL):",
+            "Пришлите ссылку на презентацию вашего продукта/проекта. Если её нет — поставьте «-»:",
             back_kb(),
         ),
-        AcceleratorStates.waiting_for_team: ("ФИО и роль членов команды:", back_kb()),
-        AcceleratorStates.waiting_for_hse: ("Вы из НИУ ВШЭ?", with_back(yes_no_kb())),
+        AcceleratorStates.waiting_for_team: ("ФИО и Образовательная программа:", back_kb()),
+        AcceleratorStates.waiting_for_hse: ("Ваш вуз:", with_back(yes_no_kb())),
         AcceleratorStates.waiting_for_consent: (CONSENT_TEXT, with_back(consent_kb())),
     }
     return prompts[state]
@@ -121,7 +151,7 @@ def ev_step_prompt(state: EventStates):
     prompts = {
         EventStates.waiting_for_name: (EV_INTRO, back_kb()),
         EventStates.waiting_for_hse: (
-            "Вы из ВШЭ? (важно для заказа пропуска для гостей не из ВШЭ)",
+            "Ваш вуз (важно для заказа пропуска для гостей не из ВШЭ):",
             with_back(yes_no_kb()),
         ),
         EventStates.waiting_for_edu_program: (
@@ -141,13 +171,13 @@ def ev_step_prompt(state: EventStates):
     return prompts[state]
 
 
+# --- Маппинг предыдущих состояний (для кнопки «Назад») ---
 ACC_PREV_STATE = {
     AcceleratorStates.waiting_for_name: ChoosingEvent.waiting_for_event,
     AcceleratorStates.waiting_for_project_name: AcceleratorStates.waiting_for_name,
     AcceleratorStates.waiting_for_email: AcceleratorStates.waiting_for_project_name,
     AcceleratorStates.waiting_for_tg: AcceleratorStates.waiting_for_email,
-    AcceleratorStates.waiting_for_track: AcceleratorStates.waiting_for_tg,
-    AcceleratorStates.waiting_for_stage: AcceleratorStates.waiting_for_track,
+    AcceleratorStates.waiting_for_stage: AcceleratorStates.waiting_for_tg,
     AcceleratorStates.waiting_for_description: AcceleratorStates.waiting_for_stage,
     AcceleratorStates.waiting_for_pizzapitch: AcceleratorStates.waiting_for_description,
     AcceleratorStates.waiting_for_presentation_url: AcceleratorStates.waiting_for_pizzapitch,
@@ -203,10 +233,13 @@ async def nav_back(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.answer(text, reply_markup=markup)
         return
 
+
 # --- /start и выбор мероприятия ---
 WELCOME_TEXT = (
-    "Привет! Этот бот создан для регистрации на мероприятия Бизнес-студии «ВоронаCreativeTech».\n\n"
-    "Контакт для связи и поддержки: {support}"
+    "Добро пожаловать!\n\n"
+    "Ниже небольшая анкета, после заполнения которой (1 мин.), вы будете зарегистрированы "
+    "на наши мероприятия и получите доступ к нашим материалам.\n"
+    "Контакт для связи и поддержки {support}"
 )
 
 
@@ -224,7 +257,7 @@ async def cmd_start(message: types.Message, state: FSMContext):
     await state.set_state(ChoosingEvent.waiting_for_event)
 
 
-@router.callback_query(ChoosingEvent.waiting_for_event, F.data.in_(["ev:acc", "ev:evs"]))
+@router.callback_query(ChoosingEvent.waiting_for_event, F.data.in_(["ev:acc", "ev:evs", "test:placeholder"]))
 async def process_event_choice(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
     if callback.data == "ev:acc":
@@ -232,11 +265,12 @@ async def process_event_choice(callback: types.CallbackQuery, state: FSMContext)
         await state.set_state(AcceleratorStates.waiting_for_name)
         text, markup = acc_step_prompt(AcceleratorStates.waiting_for_name)
         await callback.message.answer(text, reply_markup=markup)
-    else:
+    elif callback.data == "ev:evs":
         await state.update_data(event_type="events")
         await state.set_state(EventStates.waiting_for_name)
         text, markup = ev_step_prompt(EventStates.waiting_for_name)
         await callback.message.answer(text, reply_markup=markup)
+    # test:placeholder — заглушка, просто игнорируем
 
 
 @router.message(ChoosingEvent.waiting_for_event)
@@ -281,27 +315,9 @@ async def acc_tg(message: types.Message, state: FSMContext):
         await message.answer("Введите @username или номер телефона:", reply_markup=markup)
         return
     await state.update_data(contact=message.text.strip())
-    await state.set_state(AcceleratorStates.waiting_for_track)
-    text, markup = acc_step_prompt(AcceleratorStates.waiting_for_track)
-    await message.answer(text, reply_markup=markup)
-
-
-@router.callback_query(AcceleratorStates.waiting_for_track, F.data.startswith("tr:"))
-async def acc_track(callback: types.CallbackQuery, state: FSMContext):
-    await callback.answer()
-    key = callback.data.split(":", 1)[1]
-    if key not in ACCELERATOR_TRACKS:
-        return
-    await state.update_data(track=ACCELERATOR_TRACKS[key])
     await state.set_state(AcceleratorStates.waiting_for_stage)
     text, markup = acc_step_prompt(AcceleratorStates.waiting_for_stage)
-    await callback.message.answer(text, reply_markup=markup)
-
-
-@router.message(AcceleratorStates.waiting_for_track)
-async def acc_track_wrong(message: types.Message):
-    text, markup = acc_step_prompt(AcceleratorStates.waiting_for_track)
-    await message.answer("Выберите направление кнопкой ниже.", reply_markup=markup)
+    await message.answer(text, reply_markup=markup)
 
 
 @router.callback_query(AcceleratorStates.waiting_for_stage, F.data.startswith("st:"))
@@ -350,14 +366,16 @@ async def acc_pizzapitch_wrong(message: types.Message):
 
 @router.message(AcceleratorStates.waiting_for_presentation_url, F.text)
 async def acc_presentation(message: types.Message, state: FSMContext):
-    if not validate_url(message.text):
-        text, markup = acc_step_prompt(AcceleratorStates.waiting_for_presentation_url)
-        await message.answer("Введите корректную ссылку (http:// или https://):", reply_markup=markup)
+    text = message.text.strip()
+    if text != "-" and not validate_url(text):
+        text_p, markup = acc_step_prompt(AcceleratorStates.waiting_for_presentation_url)
+        await message.answer("Введите корректную ссылку (http:// или https://) или «-»:",
+                             reply_markup=markup)
         return
-    await state.update_data(presentation_url=message.text.strip())
+    await state.update_data(presentation_url=text)
     await state.set_state(AcceleratorStates.waiting_for_team)
-    text, markup = acc_step_prompt(AcceleratorStates.waiting_for_team)
-    await message.answer(text, reply_markup=markup)
+    text_p, markup = acc_step_prompt(AcceleratorStates.waiting_for_team)
+    await message.answer(text_p, reply_markup=markup)
 
 
 @router.message(AcceleratorStates.waiting_for_team, F.text)
@@ -393,13 +411,12 @@ async def acc_consent(callback: types.CallbackQuery, state: FSMContext):
         f"Название проекта: {data['project_name']}\n"
         f"Email: {data['email']}\n"
         f"Тг: {data['contact']}\n"
-        f"Направление: {data['track']}\n"
         f"Этап: {data['stage']}\n"
         f"Описание: {data['description'][:100]}{'…' if len(data['description']) > 100 else ''}\n"
-        f"PizzaPitch/Прожарка: {data['pizzapitch']}\n"
+        f"Выступление на мероприятиях: {data['pizzapitch']}\n"
         f"Ссылка на презентацию: {data['presentation_url']}\n"
-        f"Команда: {data['team'][:80]}{'…' if len(data['team']) > 80 else ''}\n"
-        f"Вы из ВШЭ: {data['hse']}\n\n"
+        f"ФИО и Образовательная программа: {data['team'][:80]}{'…' if len(data['team']) > 80 else ''}\n"
+        f"Ваш вуз: {data['hse']}\n\n"
         "Всё верно?"
     )
     await state.set_state(AcceleratorStates.waiting_for_confirmation)
@@ -435,9 +452,33 @@ async def acc_confirm_yes(callback: types.CallbackQuery, state: FSMContext):
 @router.callback_query(AcceleratorStates.waiting_for_confirmation, F.data == "conf:e")
 async def acc_confirm_edit(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
-    await state.set_state(AcceleratorStates.waiting_for_name)
-    text, markup = acc_step_prompt(AcceleratorStates.waiting_for_name)
-    await callback.message.answer(text, reply_markup=markup)
+    await callback.message.answer(
+        "Выберите, что именно хотите изменить:",
+        reply_markup=acc_edit_menu_kb(),
+    )
+
+
+@router.callback_query(F.data.startswith("edit:acc:"))
+async def acc_edit_field(callback: types.CallbackQuery, state: FSMContext):
+    await callback.answer()
+    field = callback.data.split(":", 2)[2]
+    field_map = {
+        "name": AcceleratorStates.waiting_for_name,
+        "project": AcceleratorStates.waiting_for_project_name,
+        "email": AcceleratorStates.waiting_for_email,
+        "tg": AcceleratorStates.waiting_for_tg,
+        "stage": AcceleratorStates.waiting_for_stage,
+        "description": AcceleratorStates.waiting_for_description,
+        "pizzapitch": AcceleratorStates.waiting_for_pizzapitch,
+        "presentation": AcceleratorStates.waiting_for_presentation_url,
+        "team": AcceleratorStates.waiting_for_team,
+        "hse": AcceleratorStates.waiting_for_hse,
+    }
+    target_state = field_map.get(field)
+    if target_state:
+        await state.set_state(target_state)
+        text, markup = acc_step_prompt(target_state)
+        await callback.message.answer(text, reply_markup=markup)
 
 
 @router.message(AcceleratorStates.waiting_for_confirmation)
@@ -508,7 +549,7 @@ async def ev_consent(callback: types.CallbackQuery, state: FSMContext):
     summary = (
         "Проверьте данные:\n\n"
         f"ФИО: {data['full_name']}\n"
-        f"Вы из ВШЭ: {data['hse']}\n"
+        f"Ваш вуз: {data['hse']}\n"
         f"Образовательная программа: {data.get('edu_program', '')}\n"
         f"Тг: {data['contact']}\n"
         f"Вопрос: {data.get('question', '-')}\n\n"
@@ -533,7 +574,9 @@ async def ev_confirm_yes(callback: types.CallbackQuery, state: FSMContext):
     event_name = EVENTS["events"]
     if sheets_service.save_registration("events", data):
         await callback.message.answer(
-            f"Регистрация на {event_name} завершена. 🎉\n\n"
+            f"Регистрация на мероприятия Бизнес-студии «ВоронаКреативТех» завершена. 🎉\n\n"
+            "До скорой встречи! И подписывайтесь на наш канал @HSEVorona, "
+            "чтобы общаться и быть в курсе новостей!\n\n"
             "Если хотите зарегистрироваться ещё раз или на второе мероприятие, нажмите /start",
         )
         await _notify_admins(callback.bot, "Мероприятия", data)
@@ -547,9 +590,28 @@ async def ev_confirm_yes(callback: types.CallbackQuery, state: FSMContext):
 @router.callback_query(EventStates.waiting_for_confirmation, F.data == "conf:e")
 async def ev_confirm_edit(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
-    await state.set_state(EventStates.waiting_for_name)
-    text, markup = ev_step_prompt(EventStates.waiting_for_name)
-    await callback.message.answer(text, reply_markup=markup)
+    await callback.message.answer(
+        "Выберите, что именно хотите изменить:",
+        reply_markup=ev_edit_menu_kb(),
+    )
+
+
+@router.callback_query(F.data.startswith("edit:ev:"))
+async def ev_edit_field(callback: types.CallbackQuery, state: FSMContext):
+    await callback.answer()
+    field = callback.data.split(":", 2)[2]
+    field_map = {
+        "name": EventStates.waiting_for_name,
+        "hse": EventStates.waiting_for_hse,
+        "edu": EventStates.waiting_for_edu_program,
+        "tg": EventStates.waiting_for_tg,
+        "question": EventStates.waiting_for_question,
+    }
+    target_state = field_map.get(field)
+    if target_state:
+        await state.set_state(target_state)
+        text, markup = ev_step_prompt(target_state)
+        await callback.message.answer(text, reply_markup=markup)
 
 
 @router.message(EventStates.waiting_for_confirmation)
@@ -562,7 +624,7 @@ async def ev_confirm_wrong(message: types.Message):
 
 async def _notify_admins(bot, event_label: str, data: dict):
     text = f"Новая регистрация ({event_label})\n\nФИО: {data.get('full_name')}\nТг: {data.get('contact')}"
-    for admin_id in ADMINS:
+    for admin_id in get_admin_ids():
         try:
             await bot.send_message(admin_id, text)
         except Exception as e:

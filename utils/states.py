@@ -12,7 +12,6 @@ class AcceleratorStates(StatesGroup):
     waiting_for_project_name = State()
     waiting_for_email = State()
     waiting_for_tg = State()
-    waiting_for_track = State()
     waiting_for_stage = State()
     waiting_for_description = State()
     waiting_for_pizzapitch = State()

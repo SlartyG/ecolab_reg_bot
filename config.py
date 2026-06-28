@@ -7,20 +7,17 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 # Прокси для Telegram API (если api.telegram.org недоступен с сервера):
 # http://user:pass@host:port или socks5://user:pass@host:port
 TELEGRAM_PROXY = os.getenv("TELEGRAM_PROXY") or None
-# ID админов через запятую в .env (ADMINS_IDS=123,456) или значение по умолчанию
-_admins_str = os.getenv("ADMINS_IDS")
-ADMINS = [int(x.strip()) for x in _admins_str.split(",") if x.strip()]
-
-# Одна книга, два листа: "Мероприятия" и "Акселератор"
+# Одна книга, листы: "Мероприятия", "Акселератор", "Админы"
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 SHEET_NAME_EVENTS = "Мероприятия"
 SHEET_NAME_ACCELERATOR = "Акселератор"
+SHEET_NAME_ADMINS = "Админы"
 CREDENTIALS_FILE = "credentials.json"
 
 # Выбор мероприятия при /start
 EVENTS = {
-    "accelerator": "Акселератор «ВоронаCreativeTech»",
-    "events": "Мероприятия Бизнес-студии",
+    "accelerator": "Акселератор «ВоронаКреативТех»",
+    "events": "Мероприятия Бизнес-студии «ВоронаКреативТех»",
 }
 
 # Акселератор: направление (трек)
@@ -47,6 +44,9 @@ PIZZAPITCH_CHOICES = {
 
 # Ссылка на положение о персональных данных
 PERSONAL_DATA_POLICY_URL = "https://www.hse.ru/data_protection_regulation"
+
+# Ссылка на бота для прохождения теста (инлайн-кнопка «Пройти тест»)
+TEST_BOT_LINK = os.getenv("TEST_BOT_LINK", "")
 
 # Контакт поддержки (юзернейм с @ для приветственного сообщения)
 SUPPORT_USERNAME = os.getenv("SUPPORT_USERNAME", "VoronaHSE")

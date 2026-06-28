@@ -7,9 +7,10 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from config import BOT_TOKEN, ADMINS, TELEGRAM_PROXY
+from config import BOT_TOKEN, TELEGRAM_PROXY
 from handlers import registration, admin
 from services.sheets import GoogleSheetsService
+import services.admins
 
 if not BOT_TOKEN:
     raise SystemExit("BOT_TOKEN не задан. Укажите его в .env")
@@ -30,13 +31,27 @@ dp.include_router(admin.router)
 sheets_service = GoogleSheetsService()
 
 
-async def hourly_stats_task(bot: Bot, sheets: GoogleSheetsService) -> None:
-    """Каждый час отправляет всем админам статистику регистраций за последний час."""
+async def refresh_admin_ids() -> list[int]:
+    """Загружает список админов из Google Sheets (лист «Админы»)."""
+    ids = sheets_service.get_admin_ids()
+    logger.info("Admin IDs refreshed: %s", ids)
+    return ids
+
+
+async def hourly_maintenance_task(b: Bot, sheets: GoogleSheetsService) -> None:
+    """Каждый час: обновляет список админов и шлёт статистику админам."""
     while True:
-        # Ждём до начала следующего часа (например, 15:00), затем раз в час
         now = datetime.now()
         seconds_until_next = (60 - now.minute) * 60 - now.second
         await asyncio.sleep(seconds_until_next)
+
+        # Обновляем админов перед отправкой статистики
+        try:
+            ids = await refresh_admin_ids()
+            services.admins.set_admin_ids(ids)
+        except Exception as e:
+            logger.error("Failed to refresh admin IDs: %s", e)
+
         try:
             stats = sheets.get_registrations_count_last_hour()
             total = stats["events"] + stats["accelerator"]
@@ -46,13 +61,14 @@ async def hourly_stats_task(bot: Bot, sheets: GoogleSheetsService) -> None:
                 f"Акселератор: {stats['accelerator']}\n"
                 f"Всего: {total}"
             )
-            for admin_id in ADMINS:
+            for admin_id in services.admins.get_admin_ids():
                 try:
-                    await bot.send_message(admin_id, text)
+                    await b.send_message(admin_id, text)
                 except Exception as e:
                     logger.warning("Failed to send hourly stats to admin %s: %s", admin_id, e)
         except Exception as e:
             logger.exception("Hourly stats task error: %s", e)
+
         await asyncio.sleep(3600)
 
 
@@ -66,7 +82,16 @@ async def main():
             "TELEGRAM_PROXY не задан. Если api.telegram.org недоступен с сервера, "
             "бот не сможет подключиться."
         )
-    asyncio.create_task(hourly_stats_task(bot, sheets_service))
+
+    # Подтягиваем админов при старте
+    try:
+        ids = await refresh_admin_ids()
+        services.admins.set_admin_ids(ids)
+    except Exception as e:
+        logger.error("Failed to load admin IDs at startup: %s", e)
+
+    asyncio.create_task(hourly_maintenance_task(bot, sheets_service))
+
     while True:
         try:
             await dp.start_polling(bot)
